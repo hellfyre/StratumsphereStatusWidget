@@ -15,6 +15,7 @@ import android.widget.ToggleButton;
 
 import java.text.SimpleDateFormat;
 
+import static org.stratum0.statuswidget.GlobalVars.setStatusAttempts;
 import static org.stratum0.statuswidget.GlobalVars.setStatusUrl;
 
 /**
@@ -64,7 +65,7 @@ public class StatusActivity extends Activity implements Button.OnClickListener, 
             }
         });
 
-        String username = prefs.getString("username", "DooRMasteR");
+        String username = prefs.getString("username", getString(R.string.yourName));
         nameBox.setText(username);
         SpaceStatusUpdateTask updateTask = new SpaceStatusUpdateTask(this);
         updateTask.addListener(this);
@@ -86,13 +87,14 @@ public class StatusActivity extends Activity implements Button.OnClickListener, 
 
         boolean b = openCloseButton.isChecked();
         if(b) {
-            new_status = "open%20"+nameBox.getText();
+            new_status = "sudo%20open%20"+nameBox.getText();
         } else {
-            new_status = "close";
+            new_status = "sudo%20close";
         }
 
         SpaceStatusChangeTask changeTask = new SpaceStatusChangeTask(this);
-        changeTask.execute(setStatusUrl + new_status);
+        changeTask.addListener(this);
+        changeTask.execute(new_status);
 
     }
 
@@ -116,13 +118,26 @@ public class StatusActivity extends Activity implements Button.OnClickListener, 
             currentStatus.setText(String.format("%s (%s)", isodate.format(status.getSince().getTime()), status.getOpenedBy()));
         }
         else if (status.getStatus() == SpaceStatus.Status.UNKNOWN) {
-            currentStatus.setText("Status unknown");
+            currentStatus.setText(getString(R.string.unknownStatus));
         }
         else {
             currentStatus.setText("");
         }
 
         progressBar.setVisibility(ProgressBar.INVISIBLE);
+        if (!progressBar.isIndeterminate()) {
+            progressBar.setIndeterminate(true);
+        }
+    }
+
+    @Override
+    public void onProgressSpaceStatusUpdate(Context context, int progress) {
+        if (progressBar.isIndeterminate()) {
+            progressBar.setIndeterminate(false);
+            progressBar.setMax(setStatusAttempts);
+        }
+        progressBar.setProgress(progress);
+        currentStatus.setText(getString(R.string.attempt) + " " + progress + "/" + setStatusAttempts);
     }
 
 }

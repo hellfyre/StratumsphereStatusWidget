@@ -7,10 +7,13 @@ import android.util.Log;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -21,9 +24,9 @@ import static org.stratum0.statuswidget.GlobalVars.TAG;
 import static org.stratum0.statuswidget.GlobalVars.getStatusUrl;
 
 /**
- * Created by Matthias Uschok <dev@uschok.de on 2013-09-30.
+ * Created by Matthias Uschok <dev@uschok.de> on 2013-09-30.
  */
-public class SpaceStatusUpdateTask extends AsyncTask <Void, Void, Void> {
+public class SpaceStatusUpdateTask extends AsyncTask <Void, Void, SpaceStatus.Status> {
 
     private ArrayList<SpaceStatusListener> receiverList = new ArrayList<SpaceStatusListener>();
     private SpaceStatus status;
@@ -35,13 +38,17 @@ public class SpaceStatusUpdateTask extends AsyncTask <Void, Void, Void> {
     }
 
     @Override
-    protected Void doInBackground(Void... voids) {
+    protected SpaceStatus.Status doInBackground(Void... voids) {
 
         Calendar now = GregorianCalendar.getInstance();
         String result = "";
         SpaceStatus.Status isOpen = SpaceStatus.Status.UNKNOWN;
 
         DefaultHttpClient client = new DefaultHttpClient();
+        final HttpParams httpParams = client.getParams();
+        HttpConnectionParams.setConnectionTimeout(httpParams, 10000);
+        HttpConnectionParams.setSoTimeout(httpParams, 10000);
+
         try {
             HttpResponse response = client.execute(new HttpGet(getStatusUrl));
             if (response.getStatusLine().getStatusCode() == 200) {
@@ -51,6 +58,8 @@ public class SpaceStatusUpdateTask extends AsyncTask <Void, Void, Void> {
                     result += line;
                 }
             }
+        } catch (IOException e) {
+            Log.w(TAG, "Something went wrong getting the status, probably timeout: ", e);
         } catch (Exception e) {
             Log.w(TAG, "Error getting JSON message: " + e);
         }
@@ -62,22 +71,28 @@ public class SpaceStatusUpdateTask extends AsyncTask <Void, Void, Void> {
             Calendar since = GregorianCalendar.getInstance();
             since.setTime(f.parse(uptimeString));
 
-            Log.d(TAG, "UpdateTask: Open?  " + status.getStatus());
-            Log.d(TAG, "UpdateTask: Opened by: " + status.getOpenedBy());
-            Log.d(TAG, "UpdateTask: Open since: " + status.getSince());
-
             isOpen = jsonObject.getBoolean("isOpen") ? SpaceStatus.Status.OPEN : SpaceStatus.Status.CLOSED;
             synchronized (this) {
                 status.update(isOpen, jsonObject.getString("openedBy"), since, now);
             }
 
+            Log.d(TAG, "UpdateTask: Open?  " + status.getStatus());
+            Log.d(TAG, "UpdateTask: Opened by: " + status.getOpenedBy());
+            Log.d(TAG, "UpdateTask: Open since: " + status.getSince());
+
         } catch (JSONException e) {
             Log.d(TAG, "Error creating JSON object: " + e);
+            synchronized (this) {
+                status.update(SpaceStatus.Status.UNKNOWN, "", GregorianCalendar.getInstance(), GregorianCalendar.getInstance());
+            }
         } catch (java.text.ParseException e) {
             Log.d(TAG, "Could not parse status response: " + e);
+            synchronized (this) {
+                status.update(SpaceStatus.Status.UNKNOWN, "", GregorianCalendar.getInstance(), GregorianCalendar.getInstance());
+            }
         }
 
-        return null;
+        return status.getStatus();
     }
 
     @Override
@@ -89,8 +104,8 @@ public class SpaceStatusUpdateTask extends AsyncTask <Void, Void, Void> {
     }
 
     @Override
-    protected void onPostExecute(Void aVoid) {
-        super.onPostExecute(aVoid);
+    protected void onPostExecute(SpaceStatus.Status status) {
+        super.onPostExecute(status);
         for (SpaceStatusListener receiver : receiverList) {
             receiver.onPostSpaceStatusUpdate(context);
         }
