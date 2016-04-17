@@ -12,6 +12,8 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.widget.RemoteViews;
 
 import java.util.Calendar;
@@ -123,19 +125,18 @@ public class StratumsphereStatusProvider extends AppWidgetProvider implements Sp
 
         //Prepare notification
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        Notification nNotOpen = new Notification();
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context)
+                .setSmallIcon(R.drawable.stratum0_unknown)
+                .setContentTitle("Change space status")
+                .setContentText(context.getText(R.string.nNotOpen));
 
-        //legacy work for Android 2.x (where notifications need an intenthandler)
         Intent notificationIntent = new Intent(context, StratumsphereStatusProvider.class);
-        PendingIntent contentIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
-        nNotOpen.defaults = Notification.DEFAULT_ALL;
-
-        //setting up the notification
-        nNotOpen.icon = R.drawable.stratum0_unknown;
-        nNotOpen.tickerText = context.getText(R.string.nNotOpen);
-        nNotOpen.when = System.currentTimeMillis();
-        nNotOpen.defaults = Notification.DEFAULT_ALL;
-        nNotOpen.setLatestEventInfo(context, context.getText(R.string.nNotOpenLatestEventInfo1), context.getText(R.string.nNotOpenLatestEventInfo2), contentIntent);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
+        stackBuilder.addParentStack(StatusActivity.class);
+        stackBuilder.addNextIntent(notificationIntent);
+        //PendingIntent contentIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
+        PendingIntent contentIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setContentIntent(contentIntent);
 
         Calendar now = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
         long diff = now.getTimeInMillis() - status.getSince().getTimeInMillis();
@@ -160,7 +161,7 @@ public class StratumsphereStatusProvider extends AppWidgetProvider implements Sp
                 upTimeText = "";
                 lastUpdateText += " WIFI";
                 //request action from user
-                notificationManager.notify(nID, nNotOpen);
+                notificationManager.notify(nID, builder.build());
             }
             else {
                 //if not on matching SSID (or not anymore) dismiss the notification

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -17,7 +18,7 @@ import java.text.SimpleDateFormat;
 /**
  * Created by tsuro on 9/1/13.
  */
-public class StatusActivity extends Activity implements Button.OnClickListener, SpaceStatusListener {
+public class StatusActivity extends AppCompatActivity implements Button.OnClickListener, SpaceStatusListener {
 
     private SharedPreferences prefs;
     private SpaceStatus status;
