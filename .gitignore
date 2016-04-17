@@ -30,7 +30,3 @@ pom.xml.*
 .classpath
 .settings
 .metadata
-
-#IntelliJ IDEA
-.idea
-*.iml
